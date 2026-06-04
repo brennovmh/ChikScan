@@ -13,15 +13,14 @@ This repository currently contains the first executable foundation:
 - fastp trimming/filtering
 - post-trim FastQC
 - batch MultiQC
-- minimap2 alignment to validated CHIKV reference
+- BWA-MEM alignment to validated CHIKV reference
 - sorted/indexed BAM with basic mapping statistics
 - organized per-sample output directories
 
 ## Planned Scope
 
 - CHIKV reference selection against a curated reference panel
-- alignment to best matched reference
-- BAM sorting, indexing, and mapping statistics
+- reference selection and alignment to best matched reference
 - per-base depth and genome/gene coverage reports
 - consensus FASTA with configurable masking thresholds
 - nucleotide and amino-acid variant reporting

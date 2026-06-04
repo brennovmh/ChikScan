@@ -54,7 +54,7 @@
         },
         "skip_alignment": {
           "type": "boolean",
-          "description": "Skip minimap2 alignment and BAM processing."
+          "description": "Skip BWA-MEM alignment and BAM processing."
         }
       }
     }
