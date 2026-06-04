@@ -6,7 +6,7 @@ CHIK-FLOW currently uses or plans to use the following tools:
 - FastQC
 - fastp
 - MultiQC
-- BWA or minimap2
+- BWA
 - SAMtools
 - iVar or bcftools
 - BLAST+

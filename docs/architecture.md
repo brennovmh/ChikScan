@@ -15,7 +15,7 @@ samplesheet
   -> FastQC post-trim
   -> MultiQC
   -> validate reference panel
-  -> align reads to reference with minimap2
+  -> align reads to reference with BWA-MEM
   -> sort/index BAM and collect mapping stats
 ```
 

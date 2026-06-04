@@ -7,7 +7,7 @@ include { FASTQC as FASTQC_POST } from '../modules/local/fastqc'
 include { FASTP               } from '../modules/local/fastp'
 include { MULTIQC             } from '../modules/local/multiqc'
 include { VALIDATE_REFERENCE_PANEL } from '../modules/local/validate_reference_panel'
-include { MINIMAP2_ALIGN      } from '../modules/local/minimap2_align'
+include { BWA_ALIGN           } from '../modules/local/bwa_align'
 include { SAMTOOLS_BAM_STATS  } from '../modules/local/samtools_bam_stats'
 
 workflow CHIKFLOW {
@@ -80,10 +80,10 @@ workflow CHIKFLOW {
     }
 
     if (!params.skip_alignment) {
-        MINIMAP2_ALIGN(ch_trimmed_reads, ch_reference_fasta)
-        ch_versions = ch_versions.mix(MINIMAP2_ALIGN.out.versions)
+        BWA_ALIGN(ch_trimmed_reads, ch_reference_fasta)
+        ch_versions = ch_versions.mix(BWA_ALIGN.out.versions)
 
-        SAMTOOLS_BAM_STATS(MINIMAP2_ALIGN.out.sam)
+        SAMTOOLS_BAM_STATS(BWA_ALIGN.out.sam)
         ch_versions = ch_versions.mix(SAMTOOLS_BAM_STATS.out.versions)
     }
 

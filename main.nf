@@ -25,7 +25,7 @@ workflow {
           --skip_fastp    Skip fastp trimming
           --skip_multiqc  Skip MultiQC aggregation
           --skip_reference_prep  Skip reference panel validation
-          --skip_alignment  Skip minimap2 alignment and BAM processing
+          --skip_alignment  Skip BWA-MEM alignment and BAM processing
         """.stripIndent()
         return
     }
