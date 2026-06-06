@@ -76,6 +76,9 @@ Run a lightweight configuration check:
 nextflow run . --help
 ```
 
+Development checks and the focused Docker smoke test are documented in
+`docs/development.md`.
+
 ## Outputs
 
 Current outputs:
