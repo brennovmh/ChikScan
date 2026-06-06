@@ -177,7 +177,8 @@ workflow CHIKFLOW {
                 ch_report_gene_coverages = GENE_COVERAGE.out.gene_coverage
                     .map { meta, gene_coverage -> gene_coverage }
                     .collect()
-                FINAL_REPORT(BATCH_SUMMARY.out.sample_summary, ch_report_genotypes, PHYLOGENY.out.tree, PHYLOGENY.out.metadata, ch_report_gene_coverages)
+                ch_report_logo = file("${projectDir}/assets/report/chikscan_logo.png", checkIfExists: true)
+                FINAL_REPORT(BATCH_SUMMARY.out.sample_summary, ch_report_genotypes, PHYLOGENY.out.tree, PHYLOGENY.out.metadata, ch_report_gene_coverages, ch_report_logo)
                 ch_versions = ch_versions.mix(FINAL_REPORT.out.versions)
             }
         }

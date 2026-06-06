@@ -30,6 +30,16 @@ python3 bin/validate_reference_panel.py \
   --gff assets/reference/NC_004162.2.gff \
   --output /tmp/chikflow_reference_panel.csv
 
+python3 bin/render_chikflow_report.py \
+  --sample-summary <sample_summary.csv> \
+  --genotypes <genotype.csv> \
+  --tree <tree.nwk> \
+  --phylogeny-metadata <phylogeny_metadata.csv> \
+  --gene-coverages <gene_coverage.csv> \
+  --logo assets/report/chikscan_logo.png \
+  --html /tmp/chikflow_report.html \
+  --pdf /tmp/chikflow_report.pdf
+
 nextflow run . --help
 ```
 
