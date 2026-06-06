@@ -1,3 +1,8 @@
+<img width="1254" height="1254" alt="CHIKscan" src="https://github.com/user-attachments/assets/c115b8e6-ce38-4b45-b1c3-e0b82c9da7e5" />
+
+
+
+
 # CHIK-FLOW
 
 CHIK-FLOW is a Nextflow DSL2 pipeline scaffold for chikungunya virus (CHIKV)
