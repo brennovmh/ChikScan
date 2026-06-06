@@ -66,9 +66,10 @@
 - `batch_reports/chikflow_report.pdf`
 - `batch_reports/chikflow_phylogeny.svg`
 
-The HTML report includes batch wild/vaccine source counts, alert tables,
-genotyping status/source tables, gene coverage plots, and a colored phylogeny.
-The PDF contains a compact text summary of the same key sections.
+The HTML report includes the CHIKscan logo, batch wild/vaccine source counts,
+automated interpretation notes, alert tables, genotyping status/source tables,
+genome coverage bars, gene coverage heatmaps, and a colored phylogeny. The PDF
+contains a compact text summary of the same key sections.
 
 ### Genotyping
 

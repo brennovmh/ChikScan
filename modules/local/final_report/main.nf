@@ -13,6 +13,7 @@ process FINAL_REPORT {
     path tree
     path phylogeny_metadata
     path gene_coverages
+    path logo
 
     output:
     path "chikflow_report.html", emit: html
@@ -28,6 +29,7 @@ process FINAL_REPORT {
         --tree "$tree" \
         --phylogeny-metadata "$phylogeny_metadata" \
         --gene-coverages ${gene_coverages} \
+        --logo "$logo" \
         --html chikflow_report.html \
         --pdf chikflow_report.pdf \
         --phylogeny-svg chikflow_phylogeny.svg

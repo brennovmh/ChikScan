@@ -1,11 +1,15 @@
 #!/usr/bin/env python3
 
 import argparse
+import base64
 import csv
 import html
 import sys
+from datetime import UTC, datetime
 from pathlib import Path
 
+
+DEFAULT_LOGO_URL = "https://github.com/user-attachments/assets/c115b8e6-ce38-4b45-b1c3-e0b82c9da7e5"
 
 SOURCE_COLORS = {
     "wild": "#1b9e77",
@@ -40,10 +44,75 @@ def to_float(value, default=0.0):
         return default
 
 
+def clamp(value, minimum=0.0, maximum=1.0):
+    return max(minimum, min(value, maximum))
+
+
+def format_percent(value):
+    return f"{clamp(value) * 100:.1f}%"
+
+
+def coverage_color(value):
+    value = clamp(value)
+    if value >= 0.95:
+        return "#057a55"
+    if value >= 0.85:
+        return "#2f9e44"
+    if value >= 0.70:
+        return "#f59f00"
+    if value >= 0.50:
+        return "#f08c00"
+    return "#c92a2a"
+
+
+def coverage_text_color(value):
+    return "#ffffff" if clamp(value) < 0.7 or clamp(value) >= 0.95 else "#102a43"
+
+
+def feature_sort_key(row):
+    return (
+        row.get("seqid", ""),
+        to_float(row.get("start", "")),
+        to_float(row.get("end", "")),
+        row.get("feature_name", ""),
+        row.get("feature_id", ""),
+    )
+
+
+def distinct_features(gene_rows):
+    features = {}
+    for row in gene_rows:
+        name = row.get("feature_name") or row.get("feature_id") or row.get("product") or "feature"
+        key = (row.get("seqid", ""), row.get("start", ""), row.get("end", ""), name)
+        features.setdefault(key, row)
+    return sorted(features.values(), key=feature_sort_key)
+
+
+def sample_ids(sample_rows, gene_rows):
+    ids = [row.get("sample_id", "") for row in sample_rows if row.get("sample_id", "")]
+    for row in gene_rows:
+        sample_id = row.get("sample_id", "")
+        if sample_id and sample_id not in ids:
+            ids.append(sample_id)
+    return ids
+
+
 def read_text(path):
     if not path or not Path(path).exists():
         return ""
     return Path(path).read_text().strip()
+
+
+def image_data_uri(path, fallback_url=DEFAULT_LOGO_URL):
+    if not path:
+        return fallback_url
+    image_path = Path(path)
+    if not image_path.exists():
+        return fallback_url
+    suffix = image_path.suffix.lower()
+    mime = "image/png" if suffix == ".png" else "image/jpeg" if suffix in {".jpg", ".jpeg"} else "image/svg+xml"
+    encoded = base64.b64encode(image_path.read_bytes()).decode("ascii")
+    return f"data:{mime};base64,{encoded}"
 
 
 def metadata_by_label(rows):
@@ -96,6 +165,49 @@ def alert_rows(sample_rows, genotype_rows):
                 }
             )
     return alerts
+
+
+def report_findings(sample_rows, genotype_rows, alerts):
+    findings = []
+    if not sample_rows:
+        findings.append("No sample summary records were available for interpretation.")
+        return findings
+
+    low_genome = [
+        row.get("sample_id", "")
+        for row in sample_rows
+        if to_float(row.get("genome_breadth_1x", "")) < 0.8
+    ]
+    high_n = [
+        row.get("sample_id", "")
+        for row in sample_rows
+        if to_float(row.get("consensus_n_fraction", "")) > 0.2
+    ]
+    assigned = [
+        row.get("sample_id", "")
+        for row in genotype_rows
+        if row.get("status", "") not in {"low_confidence", "ambiguous", "failed"}
+        and row.get("source", "unknown") != "unknown"
+    ]
+    uncertain = sorted({row.get("sample_id", "") for row in alerts if row.get("type") in {"coverage", "consensus", "genotyping"}})
+
+    findings.append(f"{len(sample_rows)} sample(s) were included in this batch report.")
+    findings.append(f"{len(assigned)} sample(s) have reportable genotype/source assignments.")
+    if low_genome:
+        findings.append("Low genome breadth was detected in: " + ", ".join(filter(None, low_genome)) + ".")
+    else:
+        findings.append("All samples met the default genome breadth screening threshold at 1x.")
+    if high_n:
+        findings.append("Consensus ambiguity above threshold was detected in: " + ", ".join(filter(None, high_n)) + ".")
+    if uncertain:
+        findings.append("Review recommended for: " + ", ".join(filter(None, uncertain)) + ".")
+    elif not alerts:
+        findings.append("No automated quality or genotyping alerts were raised.")
+    return findings
+
+
+def findings_html(findings):
+    return "<ul class=\"findings\">" + "".join(f"<li>{html.escape(item)}</li>" for item in findings) + "</ul>"
 
 
 def summary_cards(sample_rows, genotype_rows, alerts):
@@ -271,59 +383,171 @@ def tree_figure(metadata_rows, tree, css_class="tree-figure"):
     return "".join(elements)
 
 
-def coverage_figure(gene_rows):
-    if not gene_rows:
-        return "<p>No gene coverage records available.</p>"
-    rows = sorted(gene_rows, key=lambda row: (row.get("sample_id", ""), row.get("start", "0"), row.get("feature_name", "")))
+def genome_coverage_figure(sample_rows):
+    if not sample_rows:
+        return "<p>No sample coverage records available.</p>"
+
+    rows = sorted(sample_rows, key=lambda row: row.get("sample_id", ""))
     width = 980
-    row_height = 24
-    left = 260
-    top = 36
-    bar_width = 620
-    height = top + row_height * len(rows) + 30
+    row_height = 32
+    top = 52
+    left = 210
+    bar_width = 590
+    height = top + row_height * len(rows) + 42
     elements = [
-        f'<svg class="coverage-figure" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {width} {height}" role="img" aria-label="Gene coverage by sample">',
-        '<rect x="0" y="0" width="980" height="100%" fill="#ffffff"/>',
-        '<text x="24" y="22" class="svg-title">Gene coverage breadth at 1x</text>',
+        f'<svg class="coverage-figure" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {width} {height}" role="img" aria-label="Genome coverage breadth by sample">',
+        '<rect x="0" y="0" width="980" height="100%" rx="0" fill="#ffffff"/>',
+        '<text x="24" y="25" class="svg-title">Genome breadth at 1x</text>',
+        '<text x="805" y="25" class="svg-meta">0%  25%  50%  75%  100%</text>',
     ]
+
+    for tick in range(0, 5):
+        x = left + bar_width * tick / 4
+        elements.append(f'<line x1="{x:.1f}" y1="38" x2="{x:.1f}" y2="{height - 24}" stroke="#e6ebf1" stroke-width="1"/>')
+
     for index, row in enumerate(rows):
         y = top + index * row_height
-        breadth = max(0.0, min(to_float(row.get("breadth_1x", "")), 1.0))
-        color = "#1b9e77" if breadth >= 0.9 else "#e6ab02" if breadth >= 0.5 else "#d95f02"
-        label = f"{row.get('sample_id', '')} | {row.get('feature_name', '')}"
+        breadth_1x = clamp(to_float(row.get("genome_breadth_1x", "")))
+        breadth_10x = clamp(to_float(row.get("genome_breadth_10x", "")))
+        mean_depth = to_float(row.get("genome_mean_depth", ""))
+        fill = coverage_color(breadth_1x)
         elements.extend(
             [
-                f'<text x="24" y="{y + 11}" class="svg-label">{html.escape(label[:38])}</text>',
-                f'<rect x="{left}" y="{y}" width="{bar_width}" height="14" fill="#edf2f7"/>',
-                f'<rect x="{left}" y="{y}" width="{bar_width * breadth:.1f}" height="14" fill="{color}"/>',
-                f'<text x="{left + bar_width + 12}" y="{y + 11}" class="svg-meta">{breadth:.3f}</text>',
+                f'<text x="24" y="{y + 15}" class="svg-label strong">{html.escape(row.get("sample_id", ""))}</text>',
+                f'<rect x="{left}" y="{y}" width="{bar_width}" height="18" rx="4" fill="#edf2f7"/>',
+                f'<rect x="{left}" y="{y}" width="{bar_width * breadth_1x:.1f}" height="18" rx="4" fill="{fill}"/>',
+                f'<rect x="{left}" y="{y + 21}" width="{bar_width * breadth_10x:.1f}" height="4" rx="2" fill="#2b8a9f"/>',
+                f'<text x="{left + bar_width + 14}" y="{y + 14}" class="svg-label">{format_percent(breadth_1x)}</text>',
+                f'<text x="{left + bar_width + 82}" y="{y + 14}" class="svg-meta">10x {format_percent(breadth_10x)} | mean {mean_depth:.1f}x</text>',
             ]
         )
+
+    elements.append('<text x="24" y="{0}" class="svg-meta">Thin teal line shows 10x breadth.</text>'.format(height - 10))
     elements.append("</svg>")
     return "".join(elements)
 
 
-def write_html(output, sample_rows, genotype_rows, tree, phylogeny_rows, gene_rows, phylogeny_svg):
+def gene_coverage_heatmap(gene_rows):
+    if not gene_rows:
+        return "<p>No gene coverage records available.</p>"
+
+    features = distinct_features(gene_rows)
+    samples = sample_ids([], gene_rows)
+    values = {}
+    for row in gene_rows:
+        name = row.get("feature_name") or row.get("feature_id") or row.get("product") or "feature"
+        key = (row.get("seqid", ""), row.get("start", ""), row.get("end", ""), name)
+        values[(row.get("sample_id", ""), key)] = clamp(to_float(row.get("breadth_1x", "")))
+
+    cell_width = 74
+    row_height = 32
+    left = 170
+    top = 88
+    width = max(980, left + cell_width * len(features) + 42)
+    height = top + row_height * len(samples) + 70
+    elements = [
+        f'<svg class="coverage-figure coverage-heatmap" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {width} {height}" role="img" aria-label="Gene coverage breadth heatmap">',
+        f'<rect x="0" y="0" width="{width}" height="100%" fill="#ffffff"/>',
+        '<text x="24" y="25" class="svg-title">Gene coverage breadth at 1x</text>',
+        '<text x="24" y="49" class="svg-meta">Rows are samples; columns are genomic features ordered by reference position.</text>',
+    ]
+
+    legend = [(">=95%", "#057a55"), ("85-95%", "#2f9e44"), ("70-85%", "#f59f00"), ("50-70%", "#f08c00"), ("<50%", "#c92a2a")]
+    for index, (label, color) in enumerate(legend):
+        x = width - 420 + index * 78
+        elements.extend(
+            [
+                f'<rect x="{x}" y="18" width="14" height="14" rx="3" fill="{color}"/>',
+                f'<text x="{x + 19}" y="30" class="svg-meta">{html.escape(label)}</text>',
+            ]
+        )
+
+    for col, row in enumerate(features):
+        x = left + col * cell_width + cell_width / 2
+        feature_name = row.get("feature_name") or row.get("feature_id") or "feature"
+        label = feature_name[:14]
+        elements.append(
+            f'<text x="{x:.1f}" y="76" class="svg-meta rotated" transform="rotate(-35 {x:.1f} 76)">{html.escape(label)}</text>'
+        )
+
+    for row_index, sample_id in enumerate(samples):
+        y = top + row_index * row_height
+        elements.append(f'<text x="24" y="{y + 20}" class="svg-label strong">{html.escape(sample_id)}</text>')
+        for col, feature in enumerate(features):
+            name = feature.get("feature_name") or feature.get("feature_id") or feature.get("product") or "feature"
+            key = (feature.get("seqid", ""), feature.get("start", ""), feature.get("end", ""), name)
+            value = values.get((sample_id, key))
+            x = left + col * cell_width
+            if value is None:
+                fill = "#f1f3f5"
+                label = "NA"
+                text_color = "#6b7280"
+            else:
+                fill = coverage_color(value)
+                label = f"{value * 100:.0f}"
+                text_color = coverage_text_color(value)
+            elements.extend(
+                [
+                    f'<rect x="{x}" y="{y}" width="{cell_width - 4}" height="24" rx="4" fill="{fill}"/>',
+                    f'<text x="{x + (cell_width - 4) / 2:.1f}" y="{y + 16}" text-anchor="middle" class="svg-cell" fill="{text_color}">{html.escape(label)}</text>',
+                ]
+            )
+
+    elements.append("</svg>")
+    return "".join(elements)
+
+
+def coverage_section(sample_rows, gene_rows):
+    return genome_coverage_figure(sample_rows) + gene_coverage_heatmap(gene_rows)
+
+
+def write_html(output, sample_rows, genotype_rows, tree, phylogeny_rows, gene_rows, phylogeny_svg, logo=None):
     alerts = alert_rows(sample_rows, genotype_rows)
     phylogeny = tree_figure(phylogeny_rows, tree)
+    findings = report_findings(sample_rows, genotype_rows, alerts)
+    generated_at = datetime.now(UTC).strftime("%Y-%m-%d %H:%M UTC")
+    logo_src = image_data_uri(logo)
     if phylogeny_svg:
         Path(phylogeny_svg).write_text(tree_figure(phylogeny_rows, tree, css_class="tree-figure-export"))
     css = """
-    body { font-family: Arial, sans-serif; margin: 32px; color: #1f2933; }
-    h1, h2 { color: #102a43; }
-    table { border-collapse: collapse; width: 100%; margin: 16px 0 28px; font-size: 13px; }
-    th, td { border: 1px solid #d9e2ec; padding: 7px 9px; text-align: left; }
-    th { background: #f0f4f8; }
-    code, pre { background: #f0f4f8; padding: 10px; display: block; overflow-x: auto; }
-    .meta { color: #52606d; }
-    .cards { display: flex; flex-wrap: wrap; gap: 12px; margin: 16px 0 28px; }
-    .card { border: 1px solid #d9e2ec; padding: 12px 14px; min-width: 128px; background: #fbfcfd; }
-    .card-label { color: #52606d; font-size: 12px; }
-    .card-value { color: #102a43; font-size: 24px; font-weight: 700; margin-top: 4px; }
-    .tree-figure, .coverage-figure { width: 100%; max-width: 980px; border: 1px solid #d9e2ec; margin: 12px 0 22px; }
+    :root { color-scheme: light; --ink: #152331; --muted: #5f6f7f; --line: #d8e0e8; --panel: #f7f9fb; --brand: #0f766e; --accent: #ba3a20; }
+    * { box-sizing: border-box; }
+    body { font-family: Arial, Helvetica, sans-serif; margin: 0; color: var(--ink); background: #eef3f7; }
+    main { max-width: 1180px; margin: 0 auto; padding: 24px 28px 40px; background: #ffffff; min-height: 100vh; }
+    .report-header { display: grid; grid-template-columns: 112px 1fr; gap: 22px; align-items: center; padding: 20px 0 24px; border-bottom: 4px solid var(--brand); }
+    .report-logo { width: 108px; height: 108px; object-fit: contain; }
+    .eyebrow { color: var(--brand); font-size: 12px; font-weight: 700; letter-spacing: 0; text-transform: uppercase; margin: 0 0 6px; }
+    h1 { color: var(--ink); font-size: 34px; line-height: 1.05; margin: 0; }
+    h2 { color: var(--ink); font-size: 20px; margin: 32px 0 10px; padding-bottom: 8px; border-bottom: 1px solid var(--line); }
+    h3 { color: var(--ink); font-size: 15px; margin: 20px 0 8px; }
+    table { border-collapse: collapse; width: 100%; margin: 14px 0 26px; font-size: 12px; }
+    th, td { border: 1px solid var(--line); padding: 7px 9px; text-align: left; vertical-align: top; }
+    th { background: #edf4f7; color: #243746; font-weight: 700; }
+    tr:nth-child(even) td { background: #fbfcfd; }
+    code, pre { background: #f1f5f9; border: 1px solid var(--line); padding: 12px; display: block; overflow-x: auto; }
+    .meta { color: var(--muted); }
+    .report-meta { margin: 8px 0 0; color: var(--muted); font-size: 13px; }
+    .section-note { color: var(--muted); font-size: 13px; margin: 0 0 10px; }
+    .findings { margin: 14px 0 26px; padding-left: 22px; line-height: 1.45; }
+    .findings li { margin: 6px 0; }
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(145px, 1fr)); gap: 12px; margin: 16px 0 28px; }
+    .card { border: 1px solid var(--line); border-left: 5px solid var(--brand); padding: 13px 14px; min-width: 128px; background: var(--panel); }
+    .card-label { color: var(--muted); font-size: 12px; font-weight: 700; text-transform: uppercase; }
+    .card-value { color: var(--ink); font-size: 26px; font-weight: 700; margin-top: 4px; }
+    .figure-wrap { overflow-x: auto; margin: 12px 0 24px; border: 1px solid var(--line); background: #ffffff; }
+    .tree-figure, .coverage-figure { width: 100%; min-width: 980px; display: block; }
     .svg-title { font: 700 16px Arial, sans-serif; fill: #102a43; }
     .svg-label { font: 12px Arial, sans-serif; fill: #102a43; }
+    .svg-label.strong { font-weight: 700; }
     .svg-meta { font: 11px Arial, sans-serif; fill: #52606d; }
+    .svg-cell { font: 700 11px Arial, sans-serif; }
+    .rotated { dominant-baseline: middle; }
+    @media print {
+      body { background: #ffffff; }
+      main { max-width: none; padding: 16px; }
+      .figure-wrap { overflow: visible; break-inside: avoid; }
+      .coverage-figure, .tree-figure { min-width: 0; }
+    }
     """
     content = f"""<!doctype html>
 <html lang="en">
@@ -333,24 +557,44 @@ def write_html(output, sample_rows, genotype_rows, tree, phylogeny_rows, gene_ro
   <style>{css}</style>
 </head>
 <body>
-  <h1>CHIK-FLOW Report</h1>
-  <p class="meta">Automated batch report generated from pipeline CSV outputs.</p>
-  <h2>Batch Overview</h2>
-  {summary_cards(sample_rows, genotype_rows, alerts)}
-  <h2>Alerts</h2>
-  {html_table(alerts)}
-  <h2>Sample Summary</h2>
-  {html_table(sample_rows)}
-  <h2>Genotyping</h2>
-  {html_table(genotype_rows)}
-  <h2>Gene Coverage</h2>
-  {coverage_figure(gene_rows)}
-  <h2>Phylogeny</h2>
-  {phylogeny}
-  <h2>Phylogeny Metadata</h2>
-  {html_table(phylogeny_rows)}
-  <h2>Newick</h2>
-  <pre>{html.escape(tree or 'No tree available.')}</pre>
+  <main>
+    <header class="report-header">
+      <img class="report-logo" src="{logo_src}" alt="CHIKscan logo">
+      <div>
+        <p class="eyebrow">Chikungunya sequencing surveillance</p>
+        <h1>CHIK-FLOW Report</h1>
+        <p class="report-meta">Automated batch report generated from pipeline CSV outputs. Generated {generated_at}.</p>
+      </div>
+    </header>
+
+    <h2>Batch Overview</h2>
+    {summary_cards(sample_rows, genotype_rows, alerts)}
+
+    <h2>Automated Interpretation</h2>
+    {findings_html(findings)}
+
+    <h2>Alerts</h2>
+    {html_table(alerts)}
+
+    <h2>Coverage</h2>
+    <p class="section-note">Genome and gene-level breadth summarize the fraction of positions covered at the requested thresholds.</p>
+    <div class="figure-wrap">{coverage_section(sample_rows, gene_rows)}</div>
+
+    <h2>Sample Summary</h2>
+    {html_table(sample_rows)}
+
+    <h2>Genotyping</h2>
+    {html_table(genotype_rows)}
+
+    <h2>Phylogeny</h2>
+    <div class="figure-wrap">{phylogeny}</div>
+
+    <h2>Phylogeny Metadata</h2>
+    {html_table(phylogeny_rows)}
+
+    <h2>Newick</h2>
+    <pre>{html.escape(tree or 'No tree available.')}</pre>
+  </main>
 </body>
 </html>
 """
@@ -361,28 +605,57 @@ def pdf_escape(value):
     return value.replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")
 
 
-def write_pdf(output, lines):
-    text_lines = []
+def wrap_pdf_lines(lines, width=92):
+    wrapped = []
     for line in lines:
-        while len(line) > 92:
-            text_lines.append(line[:92])
-            line = line[92:]
-        text_lines.append(line)
+        line = str(line)
+        if not line:
+            wrapped.append("")
+            continue
+        while len(line) > width:
+            split_at = line.rfind(" ", 0, width)
+            if split_at <= 0:
+                split_at = width
+            wrapped.append(line[:split_at])
+            line = line[split_at:].lstrip()
+        wrapped.append(line)
+    return wrapped
 
+
+def pdf_page_object(lines):
     commands = ["BT", "/F1 10 Tf", "50 790 Td"]
-    for index, line in enumerate(text_lines[:70]):
+    for index, line in enumerate(lines):
         if index:
             commands.append("0 -14 Td")
         commands.append(f"({pdf_escape(line)}) Tj")
     commands.append("ET")
-    stream = "\n".join(commands).encode()
+    return "\n".join(commands).encode()
+
+
+def write_pdf(output, lines):
+    text_lines = wrap_pdf_lines(lines)
+    page_line_count = 52
+    pages = [text_lines[index:index + page_line_count] for index in range(0, len(text_lines), page_line_count)] or [["CHIK-FLOW Report"]]
 
     objects = []
     objects.append(b"<< /Type /Catalog /Pages 2 0 R >>")
-    objects.append(b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>")
-    objects.append(b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>")
+    page_object_numbers = []
+    content_object_numbers = []
+    next_object = 4
+    for _page in pages:
+        page_object_numbers.append(next_object)
+        content_object_numbers.append(next_object + 1)
+        next_object += 2
+    kids = " ".join(f"{number} 0 R" for number in page_object_numbers).encode()
+    objects.append(b"<< /Type /Pages /Kids [" + kids + b"] /Count " + str(len(pages)).encode() + b" >>")
     objects.append(b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>")
-    objects.append(b"<< /Length " + str(len(stream)).encode() + b" >>\nstream\n" + stream + b"\nendstream")
+    for page_number, page_lines in enumerate(pages, start=1):
+        stream = pdf_page_object(page_lines)
+        content_number = content_object_numbers[page_number - 1]
+        objects.append(
+            f"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents {content_number} 0 R >>".encode()
+        )
+        objects.append(b"<< /Length " + str(len(stream)).encode() + b" >>\nstream\n" + stream + b"\nendstream")
 
     content = bytearray(b"%PDF-1.4\n")
     offsets = [0]
@@ -410,6 +683,7 @@ def main():
     parser.add_argument("--html", required=True)
     parser.add_argument("--pdf", required=True)
     parser.add_argument("--phylogeny-svg")
+    parser.add_argument("--logo")
     args = parser.parse_args()
 
     sample_rows = read_csv(args.sample_summary)
@@ -423,9 +697,14 @@ def main():
         gene_rows.extend(read_csv(path))
 
     alerts = alert_rows(sample_rows, genotype_rows)
-    write_html(args.html, sample_rows, genotype_rows, tree, phylogeny_rows, gene_rows, args.phylogeny_svg)
+    findings = report_findings(sample_rows, genotype_rows, alerts)
+    write_html(args.html, sample_rows, genotype_rows, tree, phylogeny_rows, gene_rows, args.phylogeny_svg, args.logo)
 
-    lines = ["CHIK-FLOW Report", "", "Batch Overview"]
+    lines = ["CHIK-FLOW Report", "Chikungunya sequencing surveillance", ""]
+    lines.extend(["Automated Interpretation"])
+    for finding in findings:
+        lines.append(f"- {finding}")
+    lines.extend(["", "Batch Overview"])
     counts = source_summary(genotype_rows)
     lines.append(
         f"samples={len(sample_rows)}, wild={counts['wild']}, vaccine={counts['vaccine']}, unknown={counts['unknown']}, alerts={len(alerts)}"
@@ -433,6 +712,27 @@ def main():
     lines.extend(["", "Alerts"])
     for row in alerts:
         lines.append(", ".join(f"{key}={value}" for key, value in row.items()))
+    lines.extend(["", "Coverage"])
+    for row in sorted(sample_rows, key=lambda item: item.get("sample_id", "")):
+        lines.append(
+            "{sample_id}: genome 1x={breadth_1x}, genome 10x={breadth_10x}, mean depth={mean_depth}, consensus N={n_fraction}".format(
+                sample_id=row.get("sample_id", ""),
+                breadth_1x=format_percent(to_float(row.get("genome_breadth_1x", ""))),
+                breadth_10x=format_percent(to_float(row.get("genome_breadth_10x", ""))),
+                mean_depth=row.get("genome_mean_depth", ""),
+                n_fraction=format_percent(to_float(row.get("consensus_n_fraction", ""))),
+            )
+        )
+    for row in sorted(gene_rows, key=lambda item: (item.get("sample_id", ""), feature_sort_key(item))):
+        lines.append(
+            "{sample_id} | {feature}: 1x={breadth_1x}, 10x={breadth_10x}, mean={mean_depth}".format(
+                sample_id=row.get("sample_id", ""),
+                feature=row.get("feature_name") or row.get("feature_id") or "feature",
+                breadth_1x=format_percent(to_float(row.get("breadth_1x", ""))),
+                breadth_10x=format_percent(to_float(row.get("breadth_10x", ""))),
+                mean_depth=row.get("mean_depth", ""),
+            )
+        )
     lines.extend(["", "Sample Summary"])
     for row in sample_rows:
         lines.append(", ".join(f"{key}={value}" for key, value in row.items()))
