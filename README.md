@@ -21,6 +21,7 @@ This repository currently contains the first executable foundation:
 - nucleotide variant CSV table
 - amino-acid mutation CSV table for CDS-overlapping variants
 - per-sample CSV summary across mapping, coverage, consensus, and variants
+- batch-level sample summary CSV
 - organized per-sample output directories
 
 ## Planned Scope
@@ -76,6 +77,7 @@ Current outputs:
 │   └── multiqc/
 ├── pipeline_info/
 ├── reference_panel/
+├── batch_reports/
 └── <sample>/
     ├── fastq/
     │   └── trimmed/
@@ -108,7 +110,6 @@ Future outputs will add:
 <sample>/bam
 <sample>/genotyping
 <sample>/phylogeny_tree
-batch_reports
 ```
 
 ## Development Status

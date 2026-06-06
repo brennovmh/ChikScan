@@ -15,6 +15,7 @@ include { GENE_COVERAGE      } from '../modules/local/gene_coverage'
 include { SAMPLE_SUMMARY     } from '../modules/local/sample_summary'
 include { VARIANT_TABLE      } from '../modules/local/variant_table'
 include { AA_MUTATIONS       } from '../modules/local/aa_mutations'
+include { BATCH_SUMMARY      } from '../modules/local/batch_summary'
 
 workflow CHIKFLOW {
     main:
@@ -131,6 +132,12 @@ workflow CHIKFLOW {
 
             SAMPLE_SUMMARY(ch_sample_summary_inputs)
             ch_versions = ch_versions.mix(SAMPLE_SUMMARY.out.versions)
+
+            ch_batch_summary_inputs = SAMPLE_SUMMARY.out.summary
+                .map { meta, summary -> summary }
+                .collect()
+            BATCH_SUMMARY(ch_batch_summary_inputs)
+            ch_versions = ch_versions.mix(BATCH_SUMMARY.out.versions)
         }
     }
 

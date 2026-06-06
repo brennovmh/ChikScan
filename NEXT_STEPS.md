@@ -1,6 +1,6 @@
 # CHIK-FLOW Next Steps
 
-## Current State
+## Current Status
 
 The local checkout is synced with GitHub `main`. Use `git log --oneline -5`
 for the current commit history.
@@ -16,6 +16,7 @@ Latest implemented blocks:
 - per-sample summary CSV
 - nucleotide variant CSV table
 - amino-acid mutation CSV table for CDS-overlapping variants
+- batch-level sample summary CSV
 
 The per-sample summary combines mapping stats, genome coverage, GFF feature
 coverage highlights, consensus metrics, low-coverage masking, and VCF record
@@ -27,6 +28,7 @@ Outputs:
 <sample>/summary/*.summary.csv
 <sample>/variant_calling/*.variants.csv
 <sample>/variant_calling/*.aa_mutations.csv
+batch_reports/sample_summary.csv
 ```
 
 ## Validation Already Completed
@@ -35,6 +37,7 @@ Python syntax validation:
 
 ```bash
 python3 -m py_compile \
+  bin/aggregate_sample_summaries.py \
   bin/vcf_to_aa_mutations.py \
   bin/vcf_to_table.py \
   bin/summarize_sample.py \
@@ -53,7 +56,7 @@ Focused Singularity test:
 
 ```bash
 nextflow run . -profile test,singularity \
-  --outdir /tmp/chikflow-aa-test \
+  --outdir /tmp/chikflow-batch-test \
   --skip_fastqc \
   --skip_fastp \
   --skip_multiqc \
@@ -63,9 +66,10 @@ nextflow run . -profile test,singularity \
 This Singularity run completed successfully and produced:
 
 ```text
-/tmp/chikflow-aa-test/sample_1/summary/sample_1.summary.csv
-/tmp/chikflow-aa-test/sample_1/variant_calling/sample_1.variants.csv
-/tmp/chikflow-aa-test/sample_1/variant_calling/sample_1.aa_mutations.csv
+/tmp/chikflow-batch-test/sample_1/summary/sample_1.summary.csv
+/tmp/chikflow-batch-test/sample_1/variant_calling/sample_1.variants.csv
+/tmp/chikflow-batch-test/sample_1/variant_calling/sample_1.aa_mutations.csv
+/tmp/chikflow-batch-test/batch_reports/sample_summary.csv
 ```
 
 ## Docker Status
@@ -88,7 +92,7 @@ Focused Docker test:
 
 ```bash
 nextflow run . -profile test,docker \
-  --outdir /tmp/chikflow-aa-docker-test \
+  --outdir /tmp/chikflow-batch-docker-test \
   --skip_fastqc \
   --skip_fastp \
   --skip_multiqc \
@@ -98,9 +102,10 @@ nextflow run . -profile test,docker \
 This Docker run completed successfully and produced:
 
 ```text
-/tmp/chikflow-aa-docker-test/sample_1/summary/sample_1.summary.csv
-/tmp/chikflow-aa-docker-test/sample_1/variant_calling/sample_1.variants.csv
-/tmp/chikflow-aa-docker-test/sample_1/variant_calling/sample_1.aa_mutations.csv
+/tmp/chikflow-batch-docker-test/sample_1/summary/sample_1.summary.csv
+/tmp/chikflow-batch-docker-test/sample_1/variant_calling/sample_1.variants.csv
+/tmp/chikflow-batch-docker-test/sample_1/variant_calling/sample_1.aa_mutations.csv
+/tmp/chikflow-batch-docker-test/batch_reports/sample_summary.csv
 ```
 
 Note: the first Docker pipeline attempt reached `VARIANT_TABLE` but failed while
@@ -128,21 +133,16 @@ Expected Docker test outputs include:
 
 ## Recommended Next Implementation
 
-1. Add batch-level reporting.
-   - Aggregate `<sample>/summary/*.summary.csv` into a single batch CSV.
-   - Suggested output: `batch_reports/sample_summary.csv`.
-   - This can later feed HTML/PDF reporting.
-
-2. Add CHIKV genotype/lineage assignment.
+1. Add CHIKV genotype/lineage assignment.
    - Define a curated genotype marker/reference strategy.
    - Suggested output: `<sample>/genotyping/*.genotype.csv`.
 
-3. Add phylogeny and final reporting.
+2. Add phylogeny and final reporting.
    - Build from consensus FASTA outputs and batch summaries.
    - Suggested outputs: phylogeny tree files and `batch_reports/*.html` /
      `batch_reports/*.pdf`.
 
-4. Update docs and tests after each block.
+3. Update docs and tests after each block.
    - Update `README.md`, `docs/output.md`, `docs/architecture.md`, and
      `CHANGELOG.md`.
    - Re-run the focused Singularity test and then Docker once available.

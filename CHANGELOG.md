@@ -10,3 +10,4 @@
 - Added per-sample summary CSV generation.
 - Added nucleotide variant CSV table generation from VCF output.
 - Added amino-acid mutation CSV generation for CDS-overlapping variants.
+- Added batch-level sample summary CSV aggregation.

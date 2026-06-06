@@ -8,6 +8,7 @@
 │   └── multiqc/
 ├── pipeline_info/
 ├── reference_panel/
+├── batch_reports/
 └── <sample_id>/
     ├── assembly/
     ├── fastq/
@@ -57,6 +58,7 @@
 ### Summary
 
 - `<sample_id>/summary/*.summary.csv`
+- `batch_reports/sample_summary.csv`
 
 ### Consensus and Variants
 

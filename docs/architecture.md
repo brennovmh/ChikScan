@@ -21,6 +21,7 @@ samplesheet
   -> summarize coverage across GFF gene/CDS features
   -> call variants and generate masked consensus FASTA
   -> write per-sample mapping/coverage/consensus/variant summary CSV
+  -> aggregate per-sample summaries into a batch sample summary CSV
 ```
 
 ## Target Workflow
