@@ -49,8 +49,13 @@ FASTQ
 
 ## CHIKV Regions for Coverage Reporting
 
-The planned coverage summary should report whole-genome coverage plus gene or
-region coverage for:
+Coverage reporting currently consumes the selected reference GFF. The bundled
+NC_004162.2 annotation includes broad nonstructural/structural polyproteins and
+projected structural protein-domain rows for Capsid, E3, E2, and E1 so the
+batch report can show E2/E1 coverage explicitly at >=10x.
+
+Future reference annotations should expand this to report whole-genome coverage
+plus gene or region coverage for:
 
 - 5'UTR
 - nsP1
@@ -64,8 +69,8 @@ region coverage for:
 - E1
 - 3'UTR
 
-Coordinates will come from the selected reference GFF rather than hard-coded
-global positions.
+Coordinates should continue to come from the selected reference GFF rather than
+hard-coded global positions.
 
 ## Report Strategy
 

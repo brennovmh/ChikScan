@@ -7,7 +7,7 @@ from collections import defaultdict
 from urllib.parse import unquote
 
 
-DEFAULT_FEATURE_TYPES = ("gene", "CDS")
+DEFAULT_FEATURE_TYPES = ("gene", "CDS", "protein_domain")
 
 
 def parse_attributes(value):

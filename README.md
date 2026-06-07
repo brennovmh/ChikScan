@@ -18,7 +18,8 @@ The pipeline currently includes:
 - BWA-MEM alignment to validated CHIKV reference
 - sorted/indexed BAM with basic mapping statistics
 - per-base depth and basic genome coverage summary
-- GFF-derived gene/CDS coverage summary
+- GFF-derived gene/CDS/domain coverage summary, including explicit E2 and E1
+  coverage when annotated
 - consensus FASTA with low-depth masking
 - nucleotide variant CSV table
 - amino-acid mutation CSV table for CDS-overlapping variants
@@ -27,7 +28,8 @@ The pipeline currently includes:
 - nearest-reference CHIKV genotype/lineage CSV
 - batch consensus distance matrix and UPGMA Newick tree
 - professional batch HTML and PDF reports with coverage plots, source counts,
-  alerts, interpretation notes, and phylogeny rendering
+  alerts, interpretation notes, E1/E2-aware gene coverage at >=10x, and
+  phylogeny rendering
 - organized per-sample output directories
 
 ## Current Focus

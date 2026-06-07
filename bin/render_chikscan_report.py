@@ -74,11 +74,23 @@ def coverage_text_color(value):
 
 
 def feature_sort_key(row):
+    feature_type_rank = {
+        "gene": 0,
+        "CDS": 1,
+        "protein_domain": 2,
+    }
+    priority = {
+        "E2": -2,
+        "E1": -1,
+    }
+    name = row.get("feature_name", "")
     return (
         row.get("seqid", ""),
+        priority.get(name, 0),
         to_float(row.get("start", "")),
         to_float(row.get("end", "")),
-        row.get("feature_name", ""),
+        feature_type_rank.get(row.get("feature_type", ""), 9),
+        name,
         row.get("feature_id", ""),
     )
 
@@ -90,6 +102,21 @@ def distinct_features(gene_rows):
         key = (row.get("seqid", ""), row.get("start", ""), row.get("end", ""), name)
         features.setdefault(key, row)
     return sorted(features.values(), key=feature_sort_key)
+
+
+def display_feature_name(row):
+    name = row.get("feature_name") or row.get("feature_id") or row.get("product") or "feature"
+    if name in {"E1", "E2", "E3", "Capsid"}:
+        return name
+    if name == "CHIKVgp1":
+        return "NS polyprotein"
+    if name == "CHIKVgp2":
+        return "Structural polyprotein"
+    if name == "NP_690588.1":
+        return "NS CDS"
+    if name == "NP_690589.2":
+        return "Structural CDS"
+    return name
 
 
 def sample_ids(sample_rows, gene_rows):
@@ -454,9 +481,9 @@ def gene_coverage_heatmap(gene_rows):
     for row in gene_rows:
         name = row.get("feature_name") or row.get("feature_id") or row.get("product") or "feature"
         key = (row.get("seqid", ""), row.get("start", ""), row.get("end", ""), name)
-        values[(row.get("sample_id", ""), key)] = clamp(to_float(row.get("breadth_1x", "")))
+        values[(row.get("sample_id", ""), key)] = clamp(to_float(row.get("breadth_10x", "")))
 
-    cell_width = 74
+    cell_width = 82
     row_height = 32
     label_width = max((text_width(sample_id) for sample_id in samples), default=0)
     left = max(190, min(460, label_width + 44))
@@ -466,8 +493,8 @@ def gene_coverage_heatmap(gene_rows):
     elements = [
         f'<svg class="coverage-figure coverage-heatmap" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {width} {height}" role="img" aria-label="Gene coverage breadth heatmap">',
         f'<rect x="0" y="0" width="{width}" height="100%" fill="#ffffff"/>',
-        '<text x="24" y="25" class="svg-title">Gene coverage breadth at 1x</text>',
-        '<text x="24" y="49" class="svg-meta">Rows are samples; columns are genomic features ordered by reference position.</text>',
+        '<text x="24" y="25" class="svg-title">Gene coverage breadth at >=10x</text>',
+        '<text x="24" y="49" class="svg-meta">Rows are samples; E2 and E1 are shown first, followed by other annotated genomic features.</text>',
     ]
 
     legend = [(">=95%", "#057a55"), ("85-95%", "#2f9e44"), ("70-85%", "#f59f00"), ("50-70%", "#f08c00"), ("<50%", "#c92a2a")]
@@ -482,8 +509,7 @@ def gene_coverage_heatmap(gene_rows):
 
     for col, row in enumerate(features):
         x = left + col * cell_width + cell_width / 2
-        feature_name = row.get("feature_name") or row.get("feature_id") or "feature"
-        label = feature_name[:14]
+        label = display_feature_name(row)[:18]
         elements.append(
             f'<text x="{x:.1f}" y="76" class="svg-meta rotated" transform="rotate(-35 {x:.1f} 76)">{html.escape(label)}</text>'
         )
