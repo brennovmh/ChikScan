@@ -27,14 +27,18 @@ def read_csv(path):
 
 def html_table(rows):
     if not rows:
-        return "<p>No records available.</p>"
+        return '<p class="empty-state">No records available.</p>'
     columns = list(rows[0].keys())
     header = "".join(f"<th>{html.escape(column)}</th>" for column in columns)
     body = []
     for row in rows:
         cells = "".join(f"<td>{html.escape(str(row.get(column, '')))}</td>" for column in columns)
         body.append(f"<tr>{cells}</tr>")
-    return f"<table><thead><tr>{header}</tr></thead><tbody>{''.join(body)}</tbody></table>"
+    return (
+        '<div class="table-wrap">'
+        f"<table><thead><tr>{header}</tr></thead><tbody>{''.join(body)}</tbody></table>"
+        "</div>"
+    )
 
 
 def to_float(value, default=0.0):
@@ -117,6 +121,14 @@ def image_data_uri(path, fallback_url=DEFAULT_LOGO_URL):
 
 def metadata_by_label(rows):
     return {row.get("tree_label", ""): row for row in rows}
+
+
+def text_width(text, char_width=7, minimum=0, maximum=None):
+    width = len(str(text or "")) * char_width
+    width = max(minimum, width)
+    if maximum is not None:
+        width = min(maximum, width)
+    return width
 
 
 def source_summary(genotype_rows):
@@ -328,12 +340,15 @@ def tree_figure(metadata_rows, tree, css_class="tree-figure"):
     leaf_nodes = leaves(root)
     rows_by_label = metadata_by_label(metadata_rows)
     ordered_labels = [leaf["label"] for leaf in leaf_nodes]
-    width = 980
+    longest_label = max((text_width(label) for label in ordered_labels), default=0)
+    width = max(1080, 520 + longest_label + 560)
     row_height = 34
     top = 54
-    left = 28
-    tree_width = 400
+    left = 32
+    tree_width = 360
     label_x = left + tree_width + 24
+    meta_x = label_x + longest_label + 34
+    nearest_x = meta_x + 300
     height = top + row_height * max(len(ordered_labels), 1) + 56
     y_positions = {label: index for index, label in enumerate(ordered_labels)}
     max_depth = [0.0]
@@ -343,12 +358,12 @@ def tree_figure(metadata_rows, tree, css_class="tree-figure"):
 
     elements = [
         f'<svg class="{css_class}" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {width} {height}" role="img" aria-label="Phylogeny with wild vaccine labels">',
-        '<rect x="0" y="0" width="980" height="100%" fill="#ffffff"/>',
+        f'<rect x="0" y="0" width="{width}" height="100%" fill="#ffffff"/>',
         '<text x="32" y="24" class="svg-title">Phylogeny source labels</text>',
     ]
 
     for source, color in SOURCE_COLORS.items():
-        legend_x = 620 + list(SOURCE_COLORS).index(source) * 110
+        legend_x = width - 360 + list(SOURCE_COLORS).index(source) * 110
         elements.append(f'<circle cx="{legend_x}" cy="20" r="6" fill="{color}"/>')
         elements.append(f'<text x="{legend_x + 12}" y="24" class="svg-label">{html.escape(source)}</text>')
 
@@ -368,12 +383,12 @@ def tree_figure(metadata_rows, tree, css_class="tree-figure"):
             [
                 f'<circle cx="{label_x - 12}" cy="{y}" r="5" fill="{color}"/>',
                 f'<text x="{label_x}" y="{y + 4}" class="svg-label">{html.escape(label)}</text>',
-                f'<text x="660" y="{y + 4}" class="svg-meta">{html.escape(role)} | {html.escape(source)} | {html.escape(genotype)} | {html.escape(lineage)}</text>',
+                f'<text x="{meta_x}" y="{y + 4}" class="svg-meta">{html.escape(role)} | {html.escape(source)} | {html.escape(genotype)} | {html.escape(lineage)}</text>',
             ]
         )
         if nearest:
             elements.append(
-                f'<text x="880" y="{y + 4}" class="svg-meta">nearest={html.escape(nearest)}</text>'
+                f'<text x="{nearest_x}" y="{y + 4}" class="svg-meta">nearest={html.escape(nearest)}</text>'
             )
 
     if tree:
@@ -388,17 +403,19 @@ def genome_coverage_figure(sample_rows):
         return "<p>No sample coverage records available.</p>"
 
     rows = sorted(sample_rows, key=lambda row: row.get("sample_id", ""))
-    width = 980
+    label_width = max((text_width(row.get("sample_id", "")) for row in rows), default=0)
+    left = max(230, min(460, label_width + 44))
+    bar_width = 590
+    right_space = 190
+    width = max(980, left + bar_width + right_space)
     row_height = 32
     top = 52
-    left = 210
-    bar_width = 590
     height = top + row_height * len(rows) + 42
     elements = [
         f'<svg class="coverage-figure" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {width} {height}" role="img" aria-label="Genome coverage breadth by sample">',
-        '<rect x="0" y="0" width="980" height="100%" rx="0" fill="#ffffff"/>',
+        f'<rect x="0" y="0" width="{width}" height="100%" rx="0" fill="#ffffff"/>',
         '<text x="24" y="25" class="svg-title">Genome breadth at 1x</text>',
-        '<text x="805" y="25" class="svg-meta">0%  25%  50%  75%  100%</text>',
+        f'<text x="{left + bar_width + 8}" y="25" class="svg-meta">0%  25%  50%  75%  100%</text>',
     ]
 
     for tick in range(0, 5):
@@ -441,7 +458,8 @@ def gene_coverage_heatmap(gene_rows):
 
     cell_width = 74
     row_height = 32
-    left = 170
+    label_width = max((text_width(sample_id) for sample_id in samples), default=0)
+    left = max(190, min(460, label_width + 44))
     top = 88
     width = max(980, left + cell_width * len(features) + 42)
     height = top + row_height * len(samples) + 70
@@ -510,7 +528,7 @@ def write_html(output, sample_rows, genotype_rows, tree, phylogeny_rows, gene_ro
     if phylogeny_svg:
         Path(phylogeny_svg).write_text(tree_figure(phylogeny_rows, tree, css_class="tree-figure-export"))
     css = """
-    :root { color-scheme: light; --ink: #152331; --muted: #5f6f7f; --line: #d8e0e8; --panel: #f7f9fb; --brand: #0f766e; --accent: #ba3a20; }
+    :root { color-scheme: light; --ink: #152331; --muted: #5f6f7f; --line: #d8e0e8; --panel: #f7f9fb; --brand: #0f766e; --accent: #ba3a20; --header: #e7f1f2; }
     * { box-sizing: border-box; }
     body { font-family: Arial, Helvetica, sans-serif; margin: 0; color: var(--ink); background: #eef3f7; }
     main { max-width: 1180px; margin: 0 auto; padding: 24px 28px 40px; background: #ffffff; min-height: 100vh; }
@@ -520,9 +538,10 @@ def write_html(output, sample_rows, genotype_rows, tree, phylogeny_rows, gene_ro
     h1 { color: var(--ink); font-size: 34px; line-height: 1.05; margin: 0; }
     h2 { color: var(--ink); font-size: 20px; margin: 32px 0 10px; padding-bottom: 8px; border-bottom: 1px solid var(--line); }
     h3 { color: var(--ink); font-size: 15px; margin: 20px 0 8px; }
-    table { border-collapse: collapse; width: 100%; margin: 14px 0 26px; font-size: 12px; }
-    th, td { border: 1px solid var(--line); padding: 7px 9px; text-align: left; vertical-align: top; }
-    th { background: #edf4f7; color: #243746; font-weight: 700; }
+    .table-wrap { width: 100%; overflow-x: auto; margin: 14px 0 26px; border: 1px solid var(--line); background: #ffffff; }
+    table { border-collapse: collapse; width: max-content; min-width: 100%; margin: 0; font-size: 12px; }
+    th, td { border: 1px solid var(--line); padding: 7px 9px; text-align: left; vertical-align: top; max-width: 280px; overflow-wrap: anywhere; }
+    th { background: var(--header); color: #243746; font-weight: 700; position: sticky; top: 0; }
     tr:nth-child(even) td { background: #fbfcfd; }
     code, pre { background: #f1f5f9; border: 1px solid var(--line); padding: 12px; display: block; overflow-x: auto; }
     .meta { color: var(--muted); }
@@ -530,12 +549,13 @@ def write_html(output, sample_rows, genotype_rows, tree, phylogeny_rows, gene_ro
     .section-note { color: var(--muted); font-size: 13px; margin: 0 0 10px; }
     .findings { margin: 14px 0 26px; padding-left: 22px; line-height: 1.45; }
     .findings li { margin: 6px 0; }
+    .empty-state { margin: 12px 0 24px; padding: 12px 14px; border: 1px solid var(--line); background: var(--panel); color: var(--muted); }
     .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(145px, 1fr)); gap: 12px; margin: 16px 0 28px; }
     .card { border: 1px solid var(--line); border-left: 5px solid var(--brand); padding: 13px 14px; min-width: 128px; background: var(--panel); }
     .card-label { color: var(--muted); font-size: 12px; font-weight: 700; text-transform: uppercase; }
     .card-value { color: var(--ink); font-size: 26px; font-weight: 700; margin-top: 4px; }
     .figure-wrap { overflow-x: auto; margin: 12px 0 24px; border: 1px solid var(--line); background: #ffffff; }
-    .tree-figure, .coverage-figure { width: 100%; min-width: 980px; display: block; }
+    .tree-figure, .coverage-figure { width: max-content; min-width: 100%; display: block; }
     .svg-title { font: 700 16px Arial, sans-serif; fill: #102a43; }
     .svg-label { font: 12px Arial, sans-serif; fill: #102a43; }
     .svg-label.strong { font-weight: 700; }
@@ -545,8 +565,11 @@ def write_html(output, sample_rows, genotype_rows, tree, phylogeny_rows, gene_ro
     @media print {
       body { background: #ffffff; }
       main { max-width: none; padding: 16px; }
+      .table-wrap { overflow: visible; border: 0; }
+      table { width: 100%; font-size: 9px; }
+      th, td { padding: 4px 5px; max-width: 150px; }
       .figure-wrap { overflow: visible; break-inside: avoid; }
-      .coverage-figure, .tree-figure { min-width: 0; }
+      .coverage-figure, .tree-figure { width: 100%; min-width: 0; }
     }
     """
     content = f"""<!doctype html>
