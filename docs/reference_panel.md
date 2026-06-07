@@ -23,6 +23,11 @@ accession|genotype=<value>|lineage=<value>|source=<wild|vaccine>|country=<value>
 | `KP851709.1` | Asian | `Mexico_InDRE51` | wild | Mexico InDRE51 Asian genotype complete genome. |
 | `EF452493.1` | Asian | `AF15561_181_25_parent` | wild | Parent strain for 181/25. |
 | `L37661.3` | Asian | `181_25_TSI_GSD_218` | vaccine | Live-attenuated 181/25 vaccine strain. |
+| `KP164568.1` | ECSA | `Brazil_Bahia_2014` | wild | Bahia/Brazil 2014 outbreak complete genome. |
+| `KJ451622.1` | Asian | `Yap_3807_2013` | wild | Yap/Micronesia Asian genotype complete genome. |
+| `KC488650.1` | Asian | `Philippines_JC2012` | wild | Philippines 2012 Asian genotype coding-complete genome. |
+| `EU244823.1` | ECSA | `IOL_Italy_2007` | wild | Italy 2007 Indian Ocean lineage complete genome. |
+| `MT666073.1` | ECSA | `Cameroon_Mfuo_2018` | wild | Cameroon 2018 complete genome. |
 
 ## Interpretation
 
@@ -35,3 +40,20 @@ when public complete sequences or validated local surrogate sequences are
 available. In particular, VLA1553/IXCHIQ is based on LR2006-OPY1 with an nsP3
 deletion, so a validated VLA1553-like reference should be added when available
 for operational use.
+
+## Default Reference Behavior
+
+The bundled panel is also the default `--reference_fasta` and
+`--genotype_references` value. Users only need to pass custom references when
+they want to override the bundled panel.
+
+Best-reference selection uses exact read k-mer matches. The selected reference
+is marked `high`, `low`, or `no_match` in each
+`*.reference_selection.csv` using:
+
+- `--reference_min_kmer_identity`
+- `--reference_min_matched_read_fraction`
+- `--reference_min_score_margin`
+
+Low-confidence selections continue through the pipeline but are explicitly
+flagged in the reference-selection CSV.

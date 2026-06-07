@@ -35,6 +35,11 @@ def read_one_csv(path):
     return rows[0]
 
 
+def read_csv(path):
+    with open(path, newline="") as handle:
+        return list(csv.DictReader(handle))
+
+
 def write(path, content):
     path.write_text(content)
     return path
@@ -151,12 +156,80 @@ def test_no_comparable_bases(tmpdir):
     assert row["compared_bases"] == "0"
 
 
+def test_reference_selection_confidence(tmpdir):
+    refs = write(
+        tmpdir / "selection_refs.fasta",
+        ">ref_a\nACGTACGTACGTACGT\n"
+        ">ref_b\nTTTTTTTTTTTTTTTT\n",
+    )
+    reads = write(
+        tmpdir / "reads.fastq",
+        "@r1\nACGTACGTACGT\n+\nIIIIIIIIIIII\n"
+        "@r2\nACGTACGTACGT\n+\nIIIIIIIIIIII\n",
+    )
+
+    run([
+        "python3",
+        "bin/select_reference.py",
+        "--sample-id",
+        "sample_high",
+        "--reads",
+        str(reads),
+        "--references",
+        str(refs),
+        "--selected-fasta",
+        str(tmpdir / "selected_high.fasta"),
+        "--output",
+        str(tmpdir / "selection_high.csv"),
+        "--kmer-size",
+        "4",
+        "--min-kmer-identity",
+        "0.50",
+        "--min-matched-read-fraction",
+        "0.50",
+        "--min-score-margin",
+        "0.10",
+    ])
+    selected = [row for row in read_csv(tmpdir / "selection_high.csv") if row["selected"] == "true"][0]
+    assert selected["reference_id"] == "ref_a"
+    assert selected["confidence"] == "high"
+    assert selected["selection_status"] == "selected"
+
+    run([
+        "python3",
+        "bin/select_reference.py",
+        "--sample-id",
+        "sample_low",
+        "--reads",
+        str(reads),
+        "--references",
+        str(refs),
+        "--selected-fasta",
+        str(tmpdir / "selected_low.fasta"),
+        "--output",
+        str(tmpdir / "selection_low.csv"),
+        "--kmer-size",
+        "4",
+        "--min-kmer-identity",
+        "0.99",
+        "--min-matched-read-fraction",
+        "0.99",
+        "--min-score-margin",
+        "1.01",
+    ])
+    selected = [row for row in read_csv(tmpdir / "selection_low.csv") if row["selected"] == "true"][0]
+    assert selected["reference_id"] == "ref_a"
+    assert selected["confidence"] == "low"
+    assert "thresholds" in selected["selection_note"]
+
+
 def main():
     with tempfile.TemporaryDirectory() as directory:
         tmpdir = Path(directory)
         test_wild_and_vaccine_assignment(tmpdir)
         test_invalid_headers_fail(tmpdir)
         test_no_comparable_bases(tmpdir)
+        test_reference_selection_confidence(tmpdir)
     print("Biological regression tests passed")
 
 

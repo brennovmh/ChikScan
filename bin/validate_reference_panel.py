@@ -7,7 +7,7 @@ import re
 import sys
 
 
-VALID_SEQUENCE = re.compile(r"^[ACGTNacgtn.-]+$")
+VALID_SEQUENCE = re.compile(r"^[ACGTRYSWKMBDHVNacgtryswkmbdhvn.-]+$")
 
 
 def parse_fasta(path):
@@ -30,7 +30,7 @@ def parse_fasta(path):
                 if not header:
                     raise ValueError(f"Line {line_number}: FASTA header is empty")
                 parts = header.split(maxsplit=1)
-                current_id = parts[0]
+                current_id = parts[0].split("|")[0]
                 current_description = parts[1] if len(parts) > 1 else ""
                 current_sequence = []
             else:

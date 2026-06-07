@@ -77,9 +77,8 @@ contains a compact text summary of the same key sections.
 
 The genotyping CSV reports the nearest reference, genotype, lineage, identity,
 wild/vaccine source, distance, comparable bases, ambiguous bases, status, and
-notes. If `--genotype_references` is not provided, the pipeline falls back to
-`--reference_fasta`; assignments from a single reference are marked in the note
-field as nearest-reference only. Wild/vaccine calls require reference FASTA
+notes. By default, CHIK-FLOW uses the bundled curated CHIKV panel for
+genotyping and source assignment. Wild/vaccine calls require reference FASTA
 headers with `source=wild` or `source=vaccine`; otherwise the source is reported
 as `unknown`.
 
@@ -89,7 +88,11 @@ as `unknown`.
 
 The reference selection CSV reports k-mer scores for every candidate reference
 record and marks the selected record with `selected=true`. The selected FASTA
-record is used for alignment and consensus generation.
+record is used for alignment and consensus generation. The selected row also
+reports `confidence` as `high`, `low`, or `no_match`, plus the selected-vs-runner
+up `score_margin`, `kmer_identity`, `matched_read_fraction`, and
+`selection_note`. Low-confidence selections continue through the pipeline but
+should be reviewed before interpretation.
 
 ### Phylogeny
 

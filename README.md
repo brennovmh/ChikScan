@@ -64,16 +64,14 @@ name. CHIK-FLOW will merge them before analysis.
 nextflow run . \
   -profile docker \
   --input samplesheet.csv \
-  --outdir results \
-  --reference_fasta references/chikv_panel.fasta \
-  --reference_gff references/chikv_panel.gff \
-  --genotype_references references/chikv_genotypes.fasta
+  --outdir results
 ```
 
-`--genotype_references` is optional. When omitted, CHIK-FLOW uses
-`--reference_fasta` as a fallback for nearest-reference comparison. For
-surveillance-grade genotype and wild/vaccine calls, provide a curated
-multi-record FASTA whose headers include labels such as
+By default, CHIK-FLOW uses the bundled curated CHIKV reference/genotype panel
+and bundled `NC_004162.2` GFF annotation. You can still override
+`--reference_fasta`, `--reference_gff`, or `--genotype_references` for a local
+validated panel. For surveillance-grade genotype and wild/vaccine calls, any
+custom multi-record FASTA should use headers such as
 `|genotype=ECSA|lineage=IOL|source=wild` or
 `|genotype=Asian|lineage=vaccine-strain|source=vaccine`.
 An initial curated panel is provided at

@@ -26,7 +26,10 @@ process SELECT_REFERENCE {
         --reads $readArgs \
         --references "$reference_fasta" \
         --selected-fasta ${meta.id}.selected_reference.fasta \
-        --output ${meta.id}.reference_selection.csv
+        --output ${meta.id}.reference_selection.csv \
+        --min-kmer-identity ${params.reference_min_kmer_identity} \
+        --min-matched-read-fraction ${params.reference_min_matched_read_fraction} \
+        --min-score-margin ${params.reference_min_score_margin}
 
     cat > versions.yml <<-END_VERSIONS
     "${task.process}":

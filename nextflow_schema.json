@@ -22,20 +22,20 @@
         "reference_fasta": {
           "type": "string",
           "format": "file-path",
-          "description": "FASTA reference panel used by downstream CHIKV modules."
+          "description": "Optional FASTA reference panel used by downstream CHIKV modules. Defaults to the bundled curated CHIKV panel."
         },
         "reference_gff": {
           "type": "string",
           "format": "file-path",
-          "description": "Optional GFF annotation for reference panel records."
+          "description": "Optional GFF annotation for reference panel records. Defaults to the bundled NC_004162.2 annotation."
         },
         "genotype_references": {
           "type": "string",
           "format": "file-path",
-          "description": "Optional curated FASTA for nearest-reference genotype/lineage and wild/vaccine source assignment. Headers must include genotype=, lineage=, and source=wild or source=vaccine labels."
+          "description": "Optional curated FASTA for nearest-reference genotype/lineage and wild/vaccine source assignment. Defaults to the bundled curated CHIKV panel. Headers must include genotype=, lineage=, and source=wild or source=vaccine labels."
         }
       },
-      "required": ["input", "outdir", "reference_fasta"]
+      "required": ["input", "outdir"]
     },
     "skip_options": {
       "title": "Process skipping options",
@@ -85,6 +85,24 @@
           "type": "integer",
           "minimum": 0,
           "description": "Minimum depth required to keep a consensus base unmasked."
+        },
+        "reference_min_kmer_identity": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Minimum selected-reference k-mer identity required for high-confidence reference selection."
+        },
+        "reference_min_matched_read_fraction": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Minimum fraction of reads with at least one selected-reference k-mer match required for high-confidence reference selection."
+        },
+        "reference_min_score_margin": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Minimum selected-reference score margin over the runner-up required for high-confidence reference selection."
         }
       }
     }

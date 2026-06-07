@@ -17,9 +17,12 @@ workflow {
           --outdir   Output directory
 
         Reference arguments:
-          --reference_fasta  FASTA reference panel used by downstream CHIKV modules
-          --reference_gff    Optional GFF annotation for reference panel records
-          --genotype_references  Optional FASTA with genotype, lineage, and source labels in headers
+          --reference_fasta  Optional FASTA reference panel; defaults to bundled CHIKV panel
+          --reference_gff    Optional GFF annotation; defaults to bundled NC_004162.2 annotation
+          --genotype_references  Optional genotype/source FASTA; defaults to bundled CHIKV panel
+          --reference_min_kmer_identity  Minimum selected-reference k-mer identity for high confidence
+          --reference_min_matched_read_fraction  Minimum read fraction with a matching k-mer for high confidence
+          --reference_min_score_margin  Minimum selected-vs-runner-up k-mer margin for high confidence
 
         Optional arguments:
           --skip_fastqc   Skip FastQC before and after trimming

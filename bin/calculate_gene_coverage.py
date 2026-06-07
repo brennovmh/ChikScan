@@ -104,8 +104,17 @@ def parse_depth(path):
     return depths
 
 
+def feature_depths(feature, depths):
+    if feature["seqid"] in depths:
+        return feature["seqid"], depths[feature["seqid"]], "exact"
+    if len(depths) == 1:
+        depth_seqid = next(iter(depths))
+        return depth_seqid, depths[depth_seqid], "single_reference_fallback"
+    return feature["seqid"], {}, "missing"
+
+
 def summarize_feature(feature, depths):
-    seq_depth = depths.get(feature["seqid"], {})
+    depth_seqid, seq_depth, annotation_match = feature_depths(feature, depths)
     length = feature["end"] - feature["start"] + 1
     depth_sum = 0
     covered_1x = 0
@@ -133,6 +142,8 @@ def summarize_feature(feature, depths):
         "max_depth": max_depth,
         "breadth_1x": covered_1x / length if length else 0,
         "breadth_10x": covered_10x / length if length else 0,
+        "depth_seqid": depth_seqid,
+        "annotation_match": annotation_match,
     }
 
 
@@ -159,6 +170,8 @@ def main():
     fieldnames = [
         "sample_id",
         "seqid",
+        "depth_seqid",
+        "annotation_match",
         "feature_type",
         "feature_id",
         "feature_name",
@@ -185,6 +198,8 @@ def main():
                 {
                     "sample_id": args.sample_id,
                     "seqid": feature["seqid"],
+                    "depth_seqid": summary["depth_seqid"],
+                    "annotation_match": summary["annotation_match"],
                     "feature_type": feature["feature_type"],
                     "feature_id": feature["id"],
                     "feature_name": feature["name"],

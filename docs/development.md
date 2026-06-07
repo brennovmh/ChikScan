@@ -26,7 +26,7 @@ python3 bin/validate_samplesheet.py \
   --output /tmp/chikflow_validated_samplesheet.csv
 
 python3 bin/validate_reference_panel.py \
-  --fasta assets/reference/NC_004162.2.fasta \
+  --fasta assets/reference/chikv_genotype_references.fasta \
   --gff assets/reference/NC_004162.2.gff \
   --output /tmp/chikflow_reference_panel.csv
 

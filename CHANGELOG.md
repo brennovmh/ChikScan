@@ -18,3 +18,6 @@
 - Added wild/vaccine source labels for genotyping and phylogeny outputs.
 - Added curated CHIKV genotype reference FASTA and per-sample reference selection.
 - Added batch report source summaries, alerts, gene coverage plots, and exported phylogeny SVG.
+- Expanded the bundled CHIKV reference/genotype panel, made bundled references
+  the default pipeline behavior, and added confidence thresholds to
+  best-reference selection.

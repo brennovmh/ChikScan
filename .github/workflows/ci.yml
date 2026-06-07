@@ -63,7 +63,7 @@ jobs:
             --output /tmp/chikflow_validated_samplesheet.csv
 
           python bin/validate_reference_panel.py \
-            --fasta assets/reference/NC_004162.2.fasta \
+            --fasta assets/reference/chikv_genotype_references.fasta \
             --gff assets/reference/NC_004162.2.gff \
             --output /tmp/chikflow_reference_panel.csv
 
@@ -72,20 +72,12 @@ jobs:
 
       - name: Run focused Docker pipeline test
         run: |
-          cat > /tmp/chikflow_genotype_references.fasta <<'EOF'
-          >wild_ref|genotype=ECSA|lineage=example-wild|source=wild
-          ATGGCTGC
-          >vaccine_ref|genotype=Asian|lineage=example-vaccine|source=vaccine
-          ATGGCTGA
-          EOF
-
           nextflow run . \
             -profile test,docker \
             --outdir /tmp/chikflow-ci-test \
             --skip_fastqc \
             --skip_fastp \
             --skip_multiqc \
-            --genotype_references /tmp/chikflow_genotype_references.fasta \
             --min_consensus_depth 1
 
       - name: Check smoke test outputs

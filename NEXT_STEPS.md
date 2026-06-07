@@ -20,6 +20,7 @@ Implemented blocks:
 - per-sample summary CSV
 - batch-level sample summary CSV
 - nearest-reference genotype/lineage assignment
+- thresholded best-reference selection with low-confidence reporting
 - batch consensus distance matrix and UPGMA Newick tree
 - batch HTML and PDF report
 
@@ -80,28 +81,23 @@ Expected core outputs include:
 
 ## Recommended Next Implementation
 
-1. Expand and review the curated CHIKV genotype/reference FASTA.
-   - The initial panel includes West African, ECSA, IOL, Asian, and 181/25
-     vaccine-strain references.
-   - Add additional vaccine-like or outbreak references as they become
-     operationally relevant.
+1. Continue expanding and reviewing the curated CHIKV genotype/reference FASTA.
+   - Add additional vaccine-like references when public complete sequences or
+     validated local surrogate sequences are available.
+   - Periodically add outbreak references that are operationally relevant to
+     the regions being monitored.
 
-2. Improve best-reference selection.
-   - The current implementation uses exact read k-mer matching.
-   - Next improvements should add minimum score thresholds and clearer
-     low-confidence reporting.
-
-3. Improve final reports.
+2. Improve final reports.
    - Add per-sample coverage plots and batch coverage heatmaps.
    - Add richer mutation tables with gene/CDS context.
    - Replace the current SVG summary with a publication-grade rendered tree.
 
-4. Expand automated validation.
+3. Expand automated validation.
    - Keep the focused CI smoke test fast.
    - Add a scheduled or manually triggered full Docker run without skips.
    - Add regression fixtures for genotype assignment and reference selection.
 
-5. Prepare the first release.
+4. Prepare the first release.
    - Pin and document all runtime containers.
    - Finalize the parameter schema and output contract.
    - Run a pilot batch with real CHIKV data and compare against trusted
